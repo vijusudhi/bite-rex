@@ -1,0 +1,67 @@
+.highlight {
+    border-radius: 0.5rem;
+    color: white;
+    padding: 0.4rem;
+    margin-top: 0.3rem;
+    margin-bottom: 0.3rem;
+    margin-right: 0.3rem;
+  }
+  .bold {
+    font-weight: 700;
+    color: black;
+  }
+  .red {
+    background-color: lightcoral;
+  }
+  .red_bold {
+    background-color: lightcoral;
+    font-weight: 700;
+  }
+  .darkred_bold {
+    background-color: rgb(226, 23, 23);
+    font-weight: 700;
+  }
+  .darkgreen_bold {
+    background-color: rgb(4, 138, 44);
+    font-weight: 700;
+  }
+  .darkbrown_bold {
+    background-color: rgb(217, 136, 128);
+    font-weight: 700;
+  }
+  .lightbrown_bold {
+    background-color: rgb(245, 193, 189);
+    font-weight: 700;
+  }
+
+.vertical {
+    border-left: 5px solid black;
+    height: 130px;
+}
+
+.heading {
+  background: linear-gradient(180deg, rgba(255,255,255,0) 65%, lightcoral 65%);
+  display: inline;
+}
+
+.separator {
+  border-top: 1px solid black;
+  border-radius: 5px;
+}
+
+.title { 
+  color: #111; 
+  font-family: Tahoma, Verdana, sans-serif;
+  letter-spacing: 1px; 
+  line-height: 1; 
+  text-align: center; 
+  }
+  .big {
+    font-size: 50px; 
+    font-weight:bold;
+    /* background: linear-gradient(180deg, rgba(255,255,255,0) 65%, lightcoral 85%); */
+    display:inline;
+  }
+  .small {
+    font-size: 25px; 
+  }
