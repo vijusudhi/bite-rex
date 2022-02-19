@@ -30,7 +30,7 @@ def load_states():
 def display_header():
     col1, col2 = st.columns([20,20])
     col1.markdown("<span class='title big'>🦖 BiTe-REx</span>", unsafe_allow_html=True)
-    col2.markdown("<span class='title small'>**Bi**-lingual **Te**xt **R**etrieval **Ex**planations<br>in the Automotive domain</span>", unsafe_allow_html=True)
+    col2.markdown("<span class='title small'>**Bi**lingual **Te**xt **R**etrieval **Ex**planations<br>in the Automotive domain</span>", unsafe_allow_html=True)
 
 
 def page_home():
@@ -66,9 +66,6 @@ def page_home():
          queries, index=index)    
 
     
-    # query = st.text_input(label='Enter the query and press Enter to search',
-    #                      value=query_text)
-    
     if query != '':
         if query_text != query:
             query_lang_corrected = False
@@ -87,8 +84,6 @@ def page_home():
         difference = after - now            
 
         retrieved = util.decompress_pickle(f"data/dump/{query_us}/retrieved")
-
-        # st.write('### Search results for "%s" in %f microseconds'%(query, difference.microseconds))
 
         token_importance_en = util.decompress_pickle(f"data/dump/{query_us}/token_importance_en")         
         token_importance_de = util.decompress_pickle(f"data/dump/{query_us}/token_importance_de")                       
@@ -215,8 +210,6 @@ def page_explanations():
             col_txt.markdown('*Document*')
         for i in spit_imp:
             with st.container():
-                # TODO: update column width dynamically according to size
-                # of text
                 col_q, col_txt = st.columns([5, 20])
                 with col_q:
                     st.markdown('**%s**' %i['split'])
