@@ -2,8 +2,6 @@ import numpy as np
 import re
 # import faiss
 
-from util import tokenize, USE_TRANSFORMERS, USE_FSE
-
 from sklearn.feature_extraction.text import TfidfVectorizer
 vectorizer = TfidfVectorizer()
 
@@ -15,14 +13,12 @@ logging.disable(sys.maxsize)
 
 ST_DIM = 300
 
-if USE_FSE:
-    from fse.models import Average
-    from fse import IndexedList
+from fse.models import Average
+from fse import IndexedList
 
-if USE_TRANSFORMERS:
-    from transformers import BertTokenizer
-    import torch
-    tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-uncased', local_files_only=True)
+from transformers import BertTokenizer
+import torch
+tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-uncased', local_files_only=True)
 
 class Encoding:
     def __init__(self, model, model_type='static'):

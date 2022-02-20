@@ -16,16 +16,27 @@ import random
 
 NUM_RETRIEVAL = 5
 
+st.set_page_config(page_title='BiTe-REx: Retrieve and Explain!', page_icon = "🦖", layout = 'centered', initial_sidebar_state = 'collapsed')
+
 def local_css(file_name):
     with open(file_name) as f:
         st.markdown('<style>{}</style>'.format(f.read()), unsafe_allow_html=True)
 
-local_css("css/style.css") 
+local_css("data/css/style.css") 
+
+DE_DOCS = '1BHIR_AmbyII1wZ5wWbobR4nQU0AYoAAN'
+EN_DOCS = '1hSF-CzOydd0zfO7BkMfT8UoT486nabQO'
 
 DE_WV_UNSUP = '1T6R0NwZT4EGafu7WadSOR6ceCfbumgEQ'
-CONT_MODEL = '1YGOPjhnf41UEzGfR6sVrHF7466LT7DhM'
-# https://drive.google.com/file/d/1lpl3V-iaaKmwR7myHsuqPMX82Tdq_HHU/view?usp=sharing
+EN_WV_UNSUP = ''
+
+DE_VECTORS = ''
+EN_VECTORS = ''
+
+CLS_MODEL = ''
+TFIDF_MODEL = ''
 CONT_MODEL_MLM_NSP = '1lpl3V-iaaKmwR7myHsuqPMX82Tdq_HHU'
+
 
 @st.cache(allow_output_mutation=True, ttl=3600)
 def load_model():
@@ -36,25 +47,31 @@ def load_model():
                 gdd.download_file_from_google_drive(file_id=drive_link,
                                         dest_path=file_path,
                                         unzip=unzip)             
-                
-    download_file(file_path='../data/static/de_wv_unsup.pbz2', drive_link=DE_WV_UNSUP, unzip=False)    
-    # download_file(file_path='../data/models/contextual_model.zip', drive_link=CONT_MODEL, unzip=True) 
-    download_file(file_path='../data/models/model_MLM_NSP.pt', drive_link=CONT_MODEL_MLM_NSP, unzip=False)
+    
+    download_file(file_path='data/docs/scraped_de_docs.pbz2', drive_link=DE_DOCS, unzip=False)  
+    download_file(file_path='data/docs/scraped_en_docs.pbz2', drive_link=EN_DOCS, unzip=False)  
+    download_file(file_path='data/static/de_wv_unsup.pbz2', drive_link=DE_WV_UNSUP, unzip=False)    
+    download_file(file_path='data/static/en_wv_unsup.pbz2', drive_link=EN_WV_UNSUP, unzip=False)   
+    download_file(file_path='data/static/st_de_doc_vectors.pbz2', drive_link=DE_VECTORS, unzip=False)    
+    download_file(file_path='data/static/st_en_doc_vectors.pbz2', drive_link=EN_VECTORS, unzip=False)    
+    download_file(file_path='data/models/model_MLM_NSP.pt', drive_link=CONT_MODEL_MLM_NSP, unzip=False)
+    download_file(file_path='data/models/cls_model.pbz2', drive_link=CLS_MODEL, unzip=False)
+    download_file(file_path='data/models/tfidf_vc.pbz2', drive_link=TFIDF_MODEL, unzip=False)
 
 @st.cache(allow_output_mutation=True, ttl=3600)
 def load_states():
-    scraped_df = util.decompress_pickle('../data/docs/scraped_df')
+    scraped_df = util.decompress_pickle('data/scraped_df/scraped_df')
     docs = scraped_df.text.to_list()
 
-    cls_model = util.decompress_pickle('../data/models/cls_model')
-    tfidf_vc = util.decompress_pickle('../data/models/tfidf_vc')
+    cls_model = util.decompress_pickle('data/models/cls_model')
+    tfidf_vc = util.decompress_pickle('data/models/tfidf_vc')
 
-    scraped_en_docs = util.decompress_pickle('../data/docs/scraped_en_docs') 
-    scraped_de_docs = util.decompress_pickle('../data/docs/scraped_de_docs')          
+    scraped_en_docs = util.decompress_pickle('data/docs/scraped_en_docs') 
+    scraped_de_docs = util.decompress_pickle('data/docs/scraped_de_docs')          
     
     # static model
-    st_en_doc_vectors = util.decompress_pickle('../data/static/st_en_doc_vectors')
-    st_de_doc_vectors = util.decompress_pickle('../data/static/st_de_doc_vectors')
+    st_en_doc_vectors = util.decompress_pickle('data/static/st_en_doc_vectors')
+    st_de_doc_vectors = util.decompress_pickle('data/static/st_de_doc_vectors')
     
     scraped_en_docs_, st_en_doc_vectors_ = [], []
     for doc, vec in zip(scraped_en_docs, st_en_doc_vectors):
@@ -70,8 +87,8 @@ def load_states():
         scraped_de_docs_.append(doc)
         st_de_doc_vectors_.append(vec)    
 
-    en_wv_unsup = util.decompress_pickle('../data/static/en_wv_unsup')
-    de_wv_unsup = util.decompress_pickle('../data/static/de_wv_unsup')
+    en_wv_unsup = util.decompress_pickle('data/static/en_wv_unsup')
+    de_wv_unsup = util.decompress_pickle('data/static/de_wv_unsup')
     
     st_encoding = vectorize.Encoding(model=[en_wv_unsup, de_wv_unsup], model_type='static')
     st_retrieval = vectorize.Retrieval(vectors=[st_en_doc_vectors_, st_de_doc_vectors_],
@@ -79,7 +96,7 @@ def load_states():
                                    )
     
     # contextual model
-    cont_model = torch.load('../data/models/model_MLM_NSP.pt').module.eval()
+    cont_model = torch.load('data/models/model_MLM_NSP.pt').module.eval()
     print('loaded', len(scraped_en_docs), len(scraped_de_docs))
 
 
@@ -101,14 +118,10 @@ def load_states():
 
 
 def display_header():
-    col1, _, col2 = st.columns([3,1,20])
-    with col1:
-        st.image('../data/multilingual-icon-9.jpg', width=100)
-    with col2:
-        st.write("""
-        # Explainable Cross-lingual Text Retrieval in the Automotive domain
-        # """)
-        
+    col1, col2 = st.columns([20,20])
+    col1.markdown("<span class='title big'>🦖 BiTe-REx</span>", unsafe_allow_html=True)
+    col2.markdown("<span class='title small'>**Bi**lingual **Te**xt **R**etrieval **Ex**planations<br>in the Automotive domain</span>", unsafe_allow_html=True)
+    
     if 'model_idx' in st.session_state:
         model_idx = st.session_state.model_idx
         num_retrieval = st.session_state.num_retrieval
@@ -307,11 +320,9 @@ def display_search_results(cached_state, doc_lang):
             explain_state = states.ExplainState(
                                 doc=doc,
                                 doc_lang=doc_lang,
-                                sim=sim,
-                                cached_state=cached_state
+                                sim=sim
                             )
             st.session_state['explain_state'] = explain_state                            
-            # dump_page_explanations()
                             
             with col1:
                 button = st.button(label="X", key='%d'%key_ind, 
@@ -327,64 +338,6 @@ def update_and_explain(explain_state):
     st.session_state["page"] = 'Explanations'
     st.session_state['explain_state'] = explain_state   
 
-def dump_page_explanations():
-    encoding = st.session_state['app_state'].encoding
-    model = st.session_state['app_state'].model
-    query = st.session_state['app_state'].query
-    query_lang = st.session_state['app_state'].query_lang
-    query_vector = st.session_state['app_state'].query_vector
-    count_vectorizer = st.session_state['app_state'].count_vectorizer
-    
-    sim = st.session_state['explain_state'].sim
-    doc = st.session_state['explain_state'].doc
-    doc_lang = st.session_state['explain_state'].doc_lang
-
-    cached_state = st.session_state['explain_state'].cached_state
-    
-    query_us = re.sub(' ', '_', query)
-    retrieved = util.decompress_pickle(f"dump/{query_us}/retrieved")
-
-    if doc in retrieved['en_docs']:
-        doc_idx = retrieved['en_docs'].index(doc)
-    if doc in retrieved['de_docs']:
-        doc_idx = retrieved['de_docs'].index(doc)
-
-    st.write(f"Dumping explanations for {doc_lang}_{doc_idx}")
-    
-    # EXP 01
-    ex_repr_space = explain_repr_space.ExplainReprSpace(
-                        query=query, query_lang=query_lang,
-                        doc=doc,
-                        en_ret_docs=retrieved['en_docs'], de_ret_docs=retrieved['de_docs'],
-                        scraped_en_docs=cached_state.scraped_docs[0], scraped_de_docs=cached_state.scraped_docs[1], 
-                        model=model, st_encoding=cached_state.st_encoding)
-    util.compress_pickle(f"dump/{query_us}/{doc_lang}_{doc_idx}_repr_space", ex_repr_space.repr_space)
-    util.compress_pickle(f"dump/{query_us}/{doc_lang}_{doc_idx}_imp_word", ex_repr_space.imp_word_full)
-
-    # EXP 02
-    heatmap = count_vectorizer.get_cooccur_matrix(query=query, query_lang=query_lang, 
-                                                 doc=doc, doc_lang=doc_lang,
-                                                 plot=True)
-    util.compress_pickle(f"dump/{query_us}/{doc_lang}_{doc_idx}_heatmap", heatmap)
-
-    # EXP 03
-    spit_imp = explain_cont.get_query_word_relations(model=model, 
-                                                query=query, 
-                                                doc=doc, 
-                                                query_lang=query_lang, 
-                                                doc_lang=doc_lang)  
-    util.compress_pickle(f"dump/{query_us}/{doc_lang}_{doc_idx}_spit_imp", spit_imp)       
-
-    # EXP 04
-    token_imp = explain_cont.get_token_import_doc(model=model, 
-                             query=query,
-                             doc=doc,
-                             lang=doc_lang
-                            )
-    plt_imp = explain_cont.plot_import_bar(token_imp, use_neg=True)        
-    util.compress_pickle(f"dump/{query_us}/{doc_lang}_{doc_idx}_plt_imp", plt_imp)
-
-    
 def page_explanations():    
     encoding = st.session_state['app_state'].encoding
     model = st.session_state['app_state'].model
@@ -434,9 +387,7 @@ def page_explanations():
                             en_ret_docs=retrieved['en_docs'], de_ret_docs=retrieved['de_docs'],
                             scraped_en_docs=cached_state.scraped_docs[0], scraped_de_docs=cached_state.scraped_docs[1], 
                             model=model, st_encoding=cached_state.st_encoding)
-        util.compress_pickle(f"dump/{query_us}/{doc_lang}_{doc_idx}_repr_space", ex_repr_space.repr_space)
-        util.compress_pickle(f"dump/{query_us}/{doc_lang}_{doc_idx}_imp_word", ex_repr_space.imp_word_full)
-        # ex_repr_space = util.decompress_pickle(f"dump/{query_us}_repr_space")
+
         text = f'\
         You can see the representation space of the queries and documents below.<br>\
         <span style="color: transparent;  text-shadow: 0 0 0 green; ">&#9899;</span> Query\
@@ -451,7 +402,6 @@ def page_explanations():
             st.markdown('Sorry! Can not dsiplay the space', unsafe_allow_html=True)
         else:                   
             st.plotly_chart(ex_repr_space.repr_space, use_container_width=True)
-            # st.plotly_chart(ex_repr_space.plot_differences_df())    
 
     st.markdown("<hr class='separator'>", unsafe_allow_html=True)
     with st.container():
@@ -467,7 +417,6 @@ def page_explanations():
     heatmap = count_vectorizer.get_cooccur_matrix(query=query, query_lang=query_lang, 
                                                  doc=doc, doc_lang=doc_lang,
                                                  plot=True)
-    util.compress_pickle(f"dump/{query_us}/{doc_lang}_{doc_idx}_heatmap", heatmap)
     st.plotly_chart(heatmap, use_container_width=True)        
 
     # with st.expander("EXP 02 - Query-Document terms co-occurrences"):
@@ -498,7 +447,6 @@ def page_explanations():
                                                 doc=doc, 
                                                 query_lang=query_lang, 
                                                 doc_lang=doc_lang)  
-    util.compress_pickle(f"dump/{query_us}/{doc_lang}_{doc_idx}_spit_imp", spit_imp)   
     st.markdown("<p></p>", unsafe_allow_html=True)   
     with st.container():
         col_q, col_txt = st.columns([5, 20])
@@ -557,7 +505,6 @@ def page_explanations():
                                  lang=doc_lang
                                 )
     plt_imp = explain_cont.plot_import_bar(token_imp, use_neg=True)        
-    util.compress_pickle(f"dump/{query_us}/{doc_lang}_{doc_idx}_plt_imp", plt_imp)
     st.plotly_chart(plt_imp, use_container_width=True)                    
 
     # with st.expander("EXP 04 - Significance of document terms"):
