@@ -8,3 +8,22 @@ To satiate the comprehensive information need of users, retrieval systems surpas
 <p align="center">
 <img src="data/figures/overview.png" alt="drawing" style="width:600px;"/>
 </p>
+
+### How to run the app?
+
+You can run the **demo app** using the link [BiTe-REx](https://bite-rex-demo.herokuapp.com/) or using the following commands in your local machine.
+
+```
+$python3.8.8
+pip install requirements.txt
+streamlit run src/bite_rex_demo.py
+```
+
+You can run the **full app** using the following commands in your local machine.
+
+```
+$python3.8.8
+pip install requirements_full.txt
+streamlit run src/bite_rex.py
+```
+
