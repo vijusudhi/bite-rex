@@ -3,16 +3,11 @@ import datetime
 import time
 from pathlib import Path
 from google_drive_downloader import GoogleDriveDownloader as gdd
-from sentence_transformers import SentenceTransformer
 import torch 
 import re
 import os
-import numpy as np
 
-import sys
-from util import util, tokenize, vectorize, explain_cont, states, query_suggestions, corpus_count_vectorizer, explain_repr_space, remove_duplicates
-
-import random
+from util import util, tokenize, vectorize, explain_cont, states, query_suggestions, corpus_count_vectorizer, explain_repr_space, remove_duplicates, display
 
 NUM_RETRIEVAL = 5
 
@@ -27,7 +22,7 @@ local_css("data/css/style.css")
 DE_DOCS = '1BHIR_AmbyII1wZ5wWbobR4nQU0AYoAAN'
 EN_DOCS = '1hSF-CzOydd0zfO7BkMfT8UoT486nabQO'
 
-DE_WV_UNSUP = '1pWtMVz8ECSRUrqKLq6fFLbt4Wurr9UEx'
+DE_WV_UNSUP = '1T6R0NwZT4EGafu7WadSOR6ceCfbumgEQ'
 EN_WV_UNSUP = '1fSOqWOid3qtV4LQWZ1ajyjrvVHAb'
 
 DE_VECTORS = '1odwHPzr_D53ixraOyJPKyq3CuMF1uqqL'
@@ -50,7 +45,7 @@ def load_model():
     
     download_file(file_path='data/docs/scraped_de_docs.pbz2', drive_link=DE_DOCS, unzip=False)  
     download_file(file_path='data/docs/scraped_en_docs.pbz2', drive_link=EN_DOCS, unzip=False)  
-    download_file(file_path='data/static/de_wv_unsup.pbz2', drive_link=DE_WV_UNSUP, unzip=False)    
+    download_file(file_path='data/static/de_wv_unsup.pbz2', drive_link=DE_WV_UNSUP, unzip=False)  
     # download_file(file_path='data/static/en_wv_unsup.pbz2', drive_link=EN_WV_UNSUP, unzip=False)   
     # download_file(file_path='data/static/st_de_doc_vectors.pbz2', drive_link=DE_VECTORS, unzip=False)    
     # download_file(file_path='data/static/st_en_doc_vectors.pbz2', drive_link=EN_VECTORS, unzip=False)    
@@ -207,11 +202,6 @@ def page_home():
         pred = cached_state.cls_model.predict(test)
         query_lang = 'en' if pred == 0 else 'de'
 
-        if not os.path.exists(f"dump/{query_us}"):
-            os.makedirs(f"dump/{query_us}")
-
-        util.compress_pickle(f"dump/{query_us}/query_lang", query_lang)
-
         with st.container():
             col1, col2 = st.columns([5, 5])
             with col1:
@@ -229,7 +219,6 @@ def page_home():
         suggest = query_suggestions.SuggestQueries(model=model)
         suggestions = suggest.get_suggestions(query)
         suggestions.sort(key=lambda s: len(s))
-        util.compress_pickle(f"dump/{query_us}/suggestions", suggestions)
         st.write("### You may also search for")
         with st.container():
             text = ""
@@ -257,8 +246,6 @@ def page_home():
         retrieved = vectorize.retrieve_cont(model, query, docs, num_retrieval*2)
         retrieved = remove_duplicates.remove_and_filter(retrieved, num_retrieval)
 
-        util.compress_pickle(f"dump/{query_us}/retrieved", retrieved)
-
         after = datetime.datetime.now()
         difference = after - now
 
@@ -276,9 +263,6 @@ def page_home():
                                  docs=retrieved['de_docs'],
                                  lang='de'
                                 )
-
-        util.compress_pickle(f"dump/{query_us}/token_importance_en", token_importance_en)         
-        util.compress_pickle(f"dump/{query_us}/token_importance_de", token_importance_de)                       
 
         # print(token_importance_de)
         app_state = states.AppState(
@@ -313,14 +297,15 @@ def display_search_results(cached_state, doc_lang):
         key_ind = 100
     
     for sim, doc in zip(sim, docs):
-        html_string = explain_cont.get_display_text(doc, token_imp, mode='bold')
-        url, title = explain_cont.get_url(cached_state.scraped_df, doc)
+        html_string = display.get_display_text(doc, token_imp, mode='bold')
+        url, title = display.get_url(cached_state.scraped_df, doc)
         with st.container():
             col1, mid = st.columns([2, 20])
             explain_state = states.ExplainState(
                                 doc=doc,
                                 doc_lang=doc_lang,
-                                sim=sim
+                                sim=sim,
+                                cached_state=cached_state
                             )
             st.session_state['explain_state'] = explain_state                            
                             
@@ -363,7 +348,6 @@ def page_explanations():
         col2.markdown(f"**{doc}**", unsafe_allow_html=True)
     
     query_us = re.sub(' ', '_', query)
-    retrieved = util.decompress_pickle(f"dump/{query_us}/retrieved")
 
     if doc in retrieved['en_docs']:
         doc_idx = retrieved['en_docs'].index(doc)
@@ -380,145 +364,110 @@ def page_explanations():
     #                                 )
     #     plt_imp = explain_cont.plot_import_bar(token_imp, use_neg=True)
 
-    with st.expander("Explore representation space"):
-        ex_repr_space = explain_repr_space.ExplainReprSpace(
-                            query=query, query_lang=query_lang,
-                            doc=doc,
-                            en_ret_docs=retrieved['en_docs'], de_ret_docs=retrieved['de_docs'],
-                            scraped_en_docs=cached_state.scraped_docs[0], scraped_de_docs=cached_state.scraped_docs[1], 
-                            model=model, st_encoding=cached_state.st_encoding)
-
-        text = f'\
-        You can see the representation space of the queries and documents below.<br>\
-        <span style="color: transparent;  text-shadow: 0 0 0 green; ">&#9899;</span> Query\
-        <span style="color: transparent;  text-shadow: 0 0 0 red; ">&#9899;</span> Document <b>relevant</b> to the query\
-        (<span style="color: transparent;  text-shadow: 0 0 0 brown; ">&#9899;</span>if selected)<br>\
-        <span style="color: transparent;  text-shadow: 0 0 0 blue; ">&#9899;</span> Document with word \
-        <span class="highlight red">{ex_repr_space.imp_word_full}</span><b>not relevant</b> to the query<br>\
-        Size of the markers indicate contextual similarity.\
-        '
-        st.markdown(text, unsafe_allow_html=True)
-        if ex_repr_space.repr_space == -1:
-            st.markdown('Sorry! Can not dsiplay the space', unsafe_allow_html=True)
-        else:                   
-            st.plotly_chart(ex_repr_space.repr_space, use_container_width=True)
-
-    st.markdown("<hr class='separator'>", unsafe_allow_html=True)
-    with st.container():
-        col1, col2, col3 = st.columns([10, 1, 30])
-        col1.markdown("<span class='heading'><b>Query-Document terms co-occurrences</b></span>", unsafe_allow_html=True)
-        col2.markdown("<div class= 'vertical'></div>", unsafe_allow_html=True)
-        col3.markdown("<p>The model was trained on patents from the European Patent Office (EPO) belonging to the International Patent Classification (IPC) <i>B60 Vehicles in General</i>.</p>",
-                     unsafe_allow_html=True
-                    )                   
-        col3.markdown("<p>You can see the query-document terms co-occurrences found the corpus below.</p>",
-                    unsafe_allow_html=True
-                    ) 
-    heatmap = count_vectorizer.get_cooccur_matrix(query=query, query_lang=query_lang, 
-                                                 doc=doc, doc_lang=doc_lang,
-                                                 plot=True)
-    st.plotly_chart(heatmap, use_container_width=True)        
-
-    # with st.expander("EXP 02 - Query-Document terms co-occurrences"):
-    #     st.markdown("<p>The model was trained on patents from the European Patent Office (EPO) belonging to the International Patent Classification (IPC) <i>B60 Vehicles in General</i>.</p> \
-    #                  <p>You can see the query-document terms co-occurrences found the corpus below.</p>",
-    #                  unsafe_allow_html=True
-    #                 )
-    #     heatmap = count_vectorizer.get_cooccur_matrix(query=query, query_lang=query_lang, 
-    #                                                  doc=doc, doc_lang=doc_lang,
-    #                                                  plot=True)
-    #     st.plotly_chart(heatmap, use_container_width=True)  
-    #   
-
-    st.markdown("<hr class='separator'>", unsafe_allow_html=True)
-    with st.container():
-        col1, col2, col3 = st.columns([10, 1, 30])
-        col1.markdown("<span class='heading'><b>Query-Document term associations</b></span>", unsafe_allow_html=True)
-        col2.markdown("<div class= 'vertical'></div>", unsafe_allow_html=True)
-        col3.markdown("<p>The model knows both English and German <i>reasonably well</i>. It can say which pair of words associate with one another.</p>",
-                     unsafe_allow_html=True
-                    )
-        col3.markdown("<p>You can see below <span class='highlight darkbrown_bold'>high</span> to <span class='highlight lightbrown_bold'>low</span> associations of document terms with the query terms.</p>",
-                 unsafe_allow_html=True
-                )    
-
-    spit_imp = explain_cont.get_query_word_relations(model=model, 
-                                                query=query, 
-                                                doc=doc, 
-                                                query_lang=query_lang, 
-                                                doc_lang=doc_lang)  
-    st.markdown("<p></p>", unsafe_allow_html=True)   
-    with st.container():
-        col_q, col_txt = st.columns([5, 20])
-        col_q.markdown('*Query term*')
-        col_txt.markdown('*Document*')
-    for i in spit_imp:
+    with st.expander('Explanation 01 - Co-occurrences'):
         with st.container():
-            # TODO: update column width dynamically according to size
-            # of text
+            im, col1, col2, col3 = st.columns([3, 5, 1, 20])
+            im.image('data/figures/exp01.png', width=50, use_column_width=True)
+            col1.markdown("<span class='heading'><b>Co-occurrences</b></span>", unsafe_allow_html=True)
+            col2.markdown("<div class= 'vertical'></div>", unsafe_allow_html=True)
+            col3.markdown("<p>The model was trained on patents from the European Patent Office (EPO) belonging to the International Patent Classification (IPC) <i>B60 Vehicles in General</i>.</p>",
+                        unsafe_allow_html=True
+                        )                   
+            col3.markdown("<p>You can see the query-document terms co-occurrences found the corpus below.</p>",
+                        unsafe_allow_html=True
+                        ) 
+
+        heatmap = count_vectorizer.get_cooccur_matrix(query=query, query_lang=query_lang, 
+                                                    doc=doc, doc_lang=doc_lang,
+                                                    plot=True)
+        st.plotly_chart(heatmap, use_container_width=True) 
+
+    with st.expander('Explanation 02 - Associations'):
+        with st.container():
+            im, col1, col2, col3 = st.columns([3, 5, 1, 20])
+            im.image('data/figures/exp02.png', width=50)
+            col1.markdown("<span class='heading'><b>Associations</b></span>", unsafe_allow_html=True)
+            col2.markdown("<div class= 'vertical'></div>", unsafe_allow_html=True)
+            col3.markdown("<p>The model knows both English and German <i>reasonably well</i>. It can say which pairs of words associate with one another.</p>",
+                        unsafe_allow_html=True
+                        )
+            col3.markdown("<p>You can see below <span class='highlight darkbrown_bold'>high</span> to <span class='highlight lightbrown_bold'>low</span> associations of document terms with the query terms.</p>",
+                    unsafe_allow_html=True
+                    )    
+
+        spit_imp = explain_cont.get_query_word_relations(model=model, 
+                                                    query=query, 
+                                                    doc=doc, 
+                                                    query_lang=query_lang, 
+                                                    doc_lang=doc_lang)   
+        st.markdown("<p></p>", unsafe_allow_html=True)   
+        with st.container():
             col_q, col_txt = st.columns([5, 20])
-            with col_q:
-                st.markdown('**%s**' %i['split'])
-            with col_txt:
-                st.markdown(i['text'], unsafe_allow_html=True)        
+            col_q.markdown('*Query term*')
+            col_txt.markdown('*Document*')
+        for i in spit_imp:
+            with st.container():
+                col_q, col_txt = st.columns([5, 20])
+                with col_q:
+                    st.markdown('**%s**' %i['split'])
+                with col_txt:
+                    st.markdown(i['text'], unsafe_allow_html=True)     
 
-    # with st.expander("EXP 03 - Query-Document term associations"):
-    #     st.markdown("<p>The model knows both English and German <i>reasonably well</i>. It can say which pair of words associate with one another.</p> \
-    #                  <p>You can see below the association of document terms with the query terms, varying from <span class='highlight darkbrown_bold'>high</span> to <span class='highlight lightbrown_bold'>low</span> values.</p>",
-    #                  unsafe_allow_html=True
-    #                 )        
-    #     spit_imp = explain_cont.get_query_word_relations(model=model, 
-    #                                                 query=query, 
-    #                                                 doc=doc, 
-    #                                                 query_lang=query_lang, 
-    #                                                 doc_lang=doc_lang)        
-    #     with st.container():
-    #         col_q, col_txt = st.columns([5, 20])
-    #         col_q.markdown('*Query term*')
-    #         col_txt.markdown('*Document*')
-    #     for i in spit_imp:
-    #         with st.container():
-    #             # TODO: update column width dynamically according to size
-    #             # of text
-    #             col_q, col_txt = st.columns([5, 20])
-    #             with col_q:
-    #                 st.markdown('**%s**' %i['split'])
-    #             with col_txt:
-    #                 st.markdown(i['text'], unsafe_allow_html=True)   
-    #                                    
+    with st.expander('Explanation 03 - Significance'):
+        with st.container():
+            im, col1, col2, col3 = st.columns([3, 5, 1, 20])
+            im.image('data/figures/exp03.png', width=50)
+            col1.markdown("<span class='heading'><b>Significance</b></span>", unsafe_allow_html=True)
+            col2.markdown("<div class= 'vertical'></div>", unsafe_allow_html=True)
+            col3.markdown("<p>Each document term contributes differently to the retrieval of this document. It can either prompt the system to retrieve the document or otherwise.</p>",
+                        unsafe_allow_html=True
+                        )
+            col3.markdown("<p> You can see below the <span class='highlight darkgreen_bold'>positive</span> or <span class='highlight darkred_bold'>negative</span> contribution of document terms to the retrieval.</p>",
+                    unsafe_allow_html=True
+                    )                     
 
-    st.markdown("<hr class='separator'>", unsafe_allow_html=True)
-    with st.container():
-        col1, col2, col3 = st.columns([10, 1, 30])
-        col1.markdown("<span class='heading'><b>Document term significance</b></span>", unsafe_allow_html=True)
-        col2.markdown("<div class= 'vertical'></div>", unsafe_allow_html=True)
-        col3.markdown("<p>Each document term contribute differently to the retrieval of this document. It can either prompt the system to retrieve the document or otherwise.</p>",
-                     unsafe_allow_html=True
-                    )
-        col3.markdown("<p> You can see below the <span class='highlight darkgreen_bold'>positive</span> or <span class='highlight darkred_bold'>negative</span> contribution of document terms to the retrieval.</p>",
-                 unsafe_allow_html=True
-                )                     
+        
+        token_imp = explain_cont.get_token_import_doc(model=model, 
+                                    query=query,
+                                    doc=doc,
+                                    lang=doc_lang
+                                    )
+        plt_imp = explain_cont.plot_import_bar(token_imp, use_neg=True)  
+        st.plotly_chart(plt_imp, use_container_width=True)     
 
-    token_imp = explain_cont.get_token_import_doc(model=model, 
-                                 query=query,
-                                 doc=doc,
-                                 lang=doc_lang
-                                )
-    plt_imp = explain_cont.plot_import_bar(token_imp, use_neg=True)        
-    st.plotly_chart(plt_imp, use_container_width=True)                    
+    with st.expander("Explanation 04 - Why and Why not?"):
+        with st.container():
+            im, col1, col2, col3 = st.columns([3, 5, 1, 20])
+            im.image('data/figures/exp04.png', width=45)
+            col1.markdown("<span class='heading'><b>Why and Why not?</b></span>", unsafe_allow_html=True)
+            col2.markdown("<div class= 'vertical'></div>", unsafe_allow_html=True)
+            col3.markdown("<p>The model learns a high-dimensional vector representation for the query and documents. The documents retrieved are closer to the query.</p>",
+                        unsafe_allow_html=True
+                        )                   
+            col3.markdown("<p>You can see below one of the possible 2-D projections of the high-dimensional representation space.</p>",
+                        unsafe_allow_html=True
+                        )
+            ex_repr_space = explain_repr_space.ExplainReprSpace(
+                                query=query, query_lang=query_lang,
+                                doc=doc,
+                                en_ret_docs=retrieved['en_docs'], de_ret_docs=retrieved['de_docs'],
+                                scraped_en_docs=cached_state.scraped_docs[0], scraped_de_docs=cached_state.scraped_docs[1], 
+                                model=model, st_encoding=cached_state.st_encoding)
 
-    # with st.expander("EXP 04 - Significance of document terms"):
-    #     st.markdown("<p>Each document term contribute differently to the retrieval of this document. It can either prompt the system to retrieve the document or otherwise.</p> \
-    #                  <p> You can see below the <span class='highlight darkgreen_bold'>positive</span> or <span class='highlight darkred_bold'>negative</span> contribution of document terms to the retrieval.</p>",
-    #                  unsafe_allow_html=True
-    #                 )         
-    #     token_imp = explain_cont.get_token_import_doc(model=model, 
-    #                                  query=query,
-    #                                  doc=doc,
-    #                                  lang=doc_lang
-    #                                 )
-    #     plt_imp = explain_cont.plot_import_bar(token_imp, use_neg=True)        
-    #     st.plotly_chart(plt_imp, use_container_width=True)
+            text = f'\
+            Hover through the documents to judge why a few documents are retrieved and a few are not.<br>\
+            <span style="color: transparent;  text-shadow: 0 0 0 green; ">&#9899;</span> Query\
+            <span style="color: transparent;  text-shadow: 0 0 0 red; ">&#9899;</span> Document <b>relevant</b> to the query\
+            (<span style="color: transparent;  text-shadow: 0 0 0 #A95C68; ">&#9899;</span>if selected)<br>\
+            <span style="color: transparent;  text-shadow: 0 0 0 blue; ">&#9899;</span> Document with word \
+            <span class="highlight red">{ex_repr_space.imp_word}</span><b>not relevant</b> to the query<br>\
+            Size of the markers indicate contextual similarity.\
+            '
+            st.markdown(text, unsafe_allow_html=True)
+            if ex_repr_space.repr_space == -1:
+                st.markdown('Sorry! Can not dsiplay the space', unsafe_allow_html=True)
+            else:                   
+                st.plotly_chart(ex_repr_space.repr_space, use_container_width=True)           
 
     
     st.session_state["page"] = 'Home'

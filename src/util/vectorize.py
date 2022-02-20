@@ -13,6 +13,8 @@ logging.disable(sys.maxsize)
 
 ST_DIM = 300
 
+from util import tokenize
+
 from fse.models import Average
 from fse import IndexedList
 

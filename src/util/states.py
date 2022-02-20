@@ -67,7 +67,9 @@ class ExplainState:
     def __init__(self,
                  doc=None,
                  doc_lang=None,
-                 sim=None):
+                 sim=None,
+                 cached_state=None):
         self.doc = doc
         self.doc_lang = doc_lang
         self.sim = sim
+        self.cached_state = cached_state

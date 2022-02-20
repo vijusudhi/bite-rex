@@ -5,6 +5,8 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 
+from util import display
+
 def get_token_import(model, query, docs, lang):
     toks = [tokenize.get_tokens(doc, lang) for doc in docs]
     toks_proc = []
@@ -119,7 +121,7 @@ def get_query_word_relations(model, query, doc, query_lang='en', doc_lang='en'):
                                                      lang=doc_lang
                                                     )
 
-        txt = get_display_text(doc, tokens_import, mode='background')
+        txt = display.get_display_text(doc, tokens_import, mode='background')
         
         
         split_imp.append(
