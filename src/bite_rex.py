@@ -1,17 +1,16 @@
 import streamlit as st
 import datetime
-import time
 from pathlib import Path
 from google_drive_downloader import GoogleDriveDownloader as gdd
 import torch 
-import re
-import os
 
-from util import util, tokenize, vectorize, explain_cont, states, query_suggestions, corpus_count_vectorizer, explain_repr_space, remove_duplicates, display
+from util import util, vectorize,  states, remove_duplicates, display, \
+    query_suggestions, cooccurrences, associations, significance, repr_space
 
 NUM_RETRIEVAL = 5
 
-st.set_page_config(page_title='BiTe-REx: Retrieve and Explain!', page_icon = "🦖", layout = 'centered', initial_sidebar_state = 'collapsed')
+st.set_page_config(page_title='BiTe-REx: Retrieve and Explain!', page_icon = "🦖", \
+    layout = 'centered', initial_sidebar_state = 'collapsed')
 
 def local_css(file_name):
     with open(file_name) as f:
@@ -21,17 +20,14 @@ local_css("data/css/style.css")
 
 DE_DOCS = '1BHIR_AmbyII1wZ5wWbobR4nQU0AYoAAN'
 EN_DOCS = '1hSF-CzOydd0zfO7BkMfT8UoT486nabQO'
-
 DE_WV_UNSUP = '1T6R0NwZT4EGafu7WadSOR6ceCfbumgEQ'
 EN_WV_UNSUP = '1fSOqWOid3qtV4LQWZ1ajyjrvVHAb'
-
 DE_VECTORS = '1odwHPzr_D53ixraOyJPKyq3CuMF1uqqL'
 EN_VECTORS = '1Jbcw-lUEc0gZTEuMfVJ9C6JPGJ4Hpo6I'
-
 CLS_MODEL = '10Cr2K1b598wMuwCit7pBqobV1jVXnKmb'
 TFIDF_MODEL = '1B540dJgVEkvtHwlSTbY2xPrmy3tWJBFc'
 CONT_MODEL_MLM_NSP = '1lpl3V-iaaKmwR7myHsuqPMX82Tdq_HHU'
-
+EPO_DATA = '1PyKw4J4bI48U2oIzhC15Lt5EjUcgFlhr'
 
 @st.cache(allow_output_mutation=True, ttl=3600)
 def load_model():
@@ -45,18 +41,14 @@ def load_model():
     
     download_file(file_path='data/docs/scraped_de_docs.pbz2', drive_link=DE_DOCS, unzip=False)  
     download_file(file_path='data/docs/scraped_en_docs.pbz2', drive_link=EN_DOCS, unzip=False)  
-    download_file(file_path='data/static/de_wv_unsup.pbz2', drive_link=DE_WV_UNSUP, unzip=False)  
-    # download_file(file_path='data/static/en_wv_unsup.pbz2', drive_link=EN_WV_UNSUP, unzip=False)   
-    # download_file(file_path='data/static/st_de_doc_vectors.pbz2', drive_link=DE_VECTORS, unzip=False)    
-    # download_file(file_path='data/static/st_en_doc_vectors.pbz2', drive_link=EN_VECTORS, unzip=False)    
+    download_file(file_path='data/docs/epo_10_20_df_wo_pre.pbz2', drive_link=EPO_DATA, unzip=False)
+    download_file(file_path='data/static/de_wv_unsup.pbz2', drive_link=DE_WV_UNSUP, unzip=False)     
     download_file(file_path='data/models/model_MLM_NSP.pt', drive_link=CONT_MODEL_MLM_NSP, unzip=False)
-    # download_file(file_path='data/models/cls_model.pbz2', drive_link=CLS_MODEL, unzip=False)
-    # download_file(file_path='data/models/tfidf_vc.pbz2', drive_link=TFIDF_MODEL, unzip=False)
+
 
 @st.cache(allow_output_mutation=True, ttl=3600)
 def load_states():
     scraped_df = util.decompress_pickle('data/scraped_df/scraped_df')
-    docs = scraped_df.text.to_list()
 
     cls_model = util.decompress_pickle('data/models/cls_model')
     tfidf_vc = util.decompress_pickle('data/models/tfidf_vc')
@@ -92,11 +84,10 @@ def load_states():
     
     # contextual model
     cont_model = torch.load('data/models/model_MLM_NSP.pt').module.eval()
-    print('loaded', len(scraped_en_docs), len(scraped_de_docs))
 
 
     # count vectorizer 
-    count_vectorizer = corpus_count_vectorizer.CorpusCountVectorizer(path='/home/sudhi/thesis/master_thesis_cltr/data/other/epo_10_20_df_wo_pre')
+    count_vectorizer = cooccurrences.CorpusCountVectorizer(path='data/docs/epo_10_20_df_wo_pre')
     
     cached_state = states.CachedState(
                                 scraped_df = scraped_df,
@@ -152,10 +143,8 @@ def display_header():
 def page_home():
     if 'app_state' in st.session_state:
         app_state = st.session_state['app_state']
-        
         query_text = app_state.query
         model_type = st.session_state.model_type
-        model_idx = st.session_state.model_idx
         num_retrieval = st.session_state.num_retrieval
         model = app_state.model
         query = app_state.query
@@ -165,24 +154,16 @@ def page_home():
         token_importance_en = app_state.token_importance_en
         token_importance_de = app_state.token_importance_de
     else:
-        model_idx = 0
         num_retrieval = 5
         query_text = ''
         query_lang_corrected = False
         
         model_type = st.session_state.model_type
-        model_idx = st.session_state.model_idx
         num_retrieval = st.session_state.num_retrieval
 
     with st.spinner('Please wait while we load the environment..'):
         load_model()
         cached_state = load_states()
-    
-    # if model_type == 'Static Embeddings':
-    #     encoding = cached_state.st_encoding
-    #     retrieval = cached_state.st_retrieval
-    # else:
-    # encoding = cached_state.cont_encoding
         
     model = cached_state.cont_model
     docs = cached_state.scraped_docs
@@ -195,8 +176,6 @@ def page_home():
     if query != '':
         if query_text != query:
             query_lang_corrected = False
-
-        query_us = re.sub(' ', '_', query) 
 
         test = cached_state.tfidf_vc.transform([query.lower()])
         pred = cached_state.cls_model.predict(test)
@@ -238,7 +217,6 @@ def page_home():
             # write any pieces of text remaining
             st.markdown(text, unsafe_allow_html=True)
 
-        # if 'app_state' not in st.session_state:
         query_vector = cached_state.st_encoding.encode(sent=[query], lang=query_lang)
         st_retrieved = cached_state.st_retrieval.retrieve(query_vec=query_vector, 
                                                           num_ret=500)
@@ -252,19 +230,17 @@ def page_home():
         st.write('### Search results for "%s" in %f microseconds'%(query, difference.microseconds))
         docs = retrieved['en_docs'] + retrieved['de_docs']
 
-        token_importance_en = explain_cont.get_token_import(model=model, 
+        token_importance_en = significance.get_token_import(model=model, 
                                      query=query,
                                      docs=retrieved['en_docs'],
                                      lang='en'
                                     )
-        # print(token_importance_en)
-        token_importance_de = explain_cont.get_token_import(model=model, 
+        token_importance_de = significance.get_token_import(model=model, 
                                  query=query,
                                  docs=retrieved['de_docs'],
                                  lang='de'
                                 )
 
-        # print(token_importance_de)
         app_state = states.AppState(
                                 model_type = model_type,
                                 num_retrieval = num_retrieval,
@@ -305,12 +281,12 @@ def display_search_results(cached_state, doc_lang):
                                 doc=doc,
                                 doc_lang=doc_lang,
                                 sim=sim,
-                                cached_state=cached_state
+                                cached_state=cached_state,
                             )
             st.session_state['explain_state'] = explain_state                            
                             
             with col1:
-                button = st.button(label="X", key='%d'%key_ind, 
+                st.button(label="X", key='%d'%key_ind, 
                                    on_click=update_and_explain,
                                    args=(explain_state,)
                                   )
@@ -324,14 +300,10 @@ def update_and_explain(explain_state):
     st.session_state['explain_state'] = explain_state   
 
 def page_explanations():    
-    encoding = st.session_state['app_state'].encoding
     model = st.session_state['app_state'].model
     query = st.session_state['app_state'].query
     query_lang = st.session_state['app_state'].query_lang
-    query_vector = st.session_state['app_state'].query_vector
-    count_vectorizer = st.session_state['app_state'].count_vectorizer
     
-    sim = st.session_state['explain_state'].sim
     doc = st.session_state['explain_state'].doc
     doc_lang = st.session_state['explain_state'].doc_lang
 
@@ -346,23 +318,6 @@ def page_explanations():
         col1, col2 = st.columns([5, 20])
         col1.markdown("Document")
         col2.markdown(f"**{doc}**", unsafe_allow_html=True)
-    
-    query_us = re.sub(' ', '_', query)
-
-    if doc in retrieved['en_docs']:
-        doc_idx = retrieved['en_docs'].index(doc)
-    if doc in retrieved['de_docs']:
-        doc_idx = retrieved['de_docs'].index(doc)
-    
-    # with st.expander("How similar is the document to the query?"):
-    #     st.write('This document is similar to your search query by', 
-    #              round(sim, 3), '.')
-    #     token_imp = explain_cont.get_token_import_doc(model=model, 
-    #                                  query=query,
-    #                                  doc=doc,
-    #                                  lang=doc_lang
-    #                                 )
-    #     plt_imp = explain_cont.plot_import_bar(token_imp, use_neg=True)
 
     with st.expander('Explanation 01 - Co-occurrences'):
         with st.container():
@@ -377,7 +332,7 @@ def page_explanations():
                         unsafe_allow_html=True
                         ) 
 
-        heatmap = count_vectorizer.get_cooccur_matrix(query=query, query_lang=query_lang, 
+        heatmap = cached_state.count_vectorizer.get_cooccur_matrix(query=query, query_lang=query_lang, 
                                                     doc=doc, doc_lang=doc_lang,
                                                     plot=True)
         st.plotly_chart(heatmap, use_container_width=True) 
@@ -395,7 +350,7 @@ def page_explanations():
                     unsafe_allow_html=True
                     )    
 
-        spit_imp = explain_cont.get_query_word_relations(model=model, 
+        spit_imp = associations.get_query_word_relations(model=model, 
                                                     query=query, 
                                                     doc=doc, 
                                                     query_lang=query_lang, 
@@ -427,12 +382,12 @@ def page_explanations():
                     )                     
 
         
-        token_imp = explain_cont.get_token_import_doc(model=model, 
+        token_imp = significance.get_token_import_doc(model=model, 
                                     query=query,
                                     doc=doc,
                                     lang=doc_lang
                                     )
-        plt_imp = explain_cont.plot_import_bar(token_imp, use_neg=True)  
+        plt_imp = significance.plot_import_bar(token_imp, use_neg=True)  
         st.plotly_chart(plt_imp, use_container_width=True)     
 
     with st.expander("Explanation 04 - Why and Why not?"):
@@ -447,11 +402,13 @@ def page_explanations():
             col3.markdown("<p>You can see below one of the possible 2-D projections of the high-dimensional representation space.</p>",
                         unsafe_allow_html=True
                         )
-            ex_repr_space = explain_repr_space.ExplainReprSpace(
+            ex_repr_space = repr_space.ExplainReprSpace(
                                 query=query, query_lang=query_lang,
                                 doc=doc,
-                                en_ret_docs=retrieved['en_docs'], de_ret_docs=retrieved['de_docs'],
-                                scraped_en_docs=cached_state.scraped_docs[0], scraped_de_docs=cached_state.scraped_docs[1], 
+                                en_ret_docs=st.session_state['app_state'].retrieved['en_docs'], 
+                                de_ret_docs=st.session_state['app_state'].retrieved['de_docs'],
+                                scraped_en_docs=cached_state.scraped_docs[0], 
+                                scraped_de_docs=cached_state.scraped_docs[1], 
                                 model=model, st_encoding=cached_state.st_encoding)
 
             text = f'\
@@ -471,7 +428,7 @@ def page_explanations():
 
     
     st.session_state["page"] = 'Home'
-    exit_button = st.button(label="Exit", key='626', on_click=update_and_exit)
+    st.button(label="Exit", key='626', on_click=update_and_exit)
 
     
 def update_and_exit():

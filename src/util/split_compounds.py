@@ -1,6 +1,6 @@
 import re
 
-file = open("/home/sudhi/thesis/thesis_cltr_app/apps/util/split_compounds.txt", "r")
+file = open(r"data/helper/split_compounds.txt", "r")
 lines = file.readlines()
 file.close()
 

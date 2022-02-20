@@ -1,11 +1,8 @@
-from colour import Color
 from util import tokenize, vectorize
 import re
 import pandas as pd
-import numpy as np
 import plotly.express as px
 
-from util import display
 
 def get_token_import(model, query, docs, lang):
     toks = [tokenize.get_tokens(doc, lang) for doc in docs]
@@ -104,31 +101,3 @@ def plot_import_bar(tokens_import_en, tokens_import_de=None, use_neg=False):
     fig.add_vrect(x0=0, x1=0)
     fig.update_layout(yaxis_title=None, xaxis_title=None)
     return fig
-
-
-def get_query_word_relations(model, query, doc, query_lang='en', doc_lang='en'):
-    split_imp = []
-    sp = query.split(' ')
-    for query_new in sp:
-        # query_vector = encoding.encode(sent=[query_new], lang=query_lang)
-
-        # if not np.any(query_vector):
-        #    continue
-
-        tokens_import = get_token_import_doc(model=model, 
-                                                     query=query_new, 
-                                                     doc=doc,
-                                                     lang=doc_lang
-                                                    )
-
-        txt = display.get_display_text(doc, tokens_import, mode='background')
-        
-        
-        split_imp.append(
-            {
-                'split': query_new,
-                'text': txt
-            }
-        )
-        
-    return split_imp

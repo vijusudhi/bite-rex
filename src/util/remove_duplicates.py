@@ -8,7 +8,6 @@ def remove_duplicates(docs):
                 if SequenceMatcher(a=doc_1,b=doc_2).ratio() > 0.7:
                     duplicates.append((idx, idx_2))
     duplicate_idx = [s[1] for s in list(set([tuple(sorted(sub)) for sub in duplicates]))]
-    print(duplicate_idx)
     
     return duplicate_idx
 
