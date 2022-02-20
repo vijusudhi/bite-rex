@@ -4,7 +4,7 @@ st.set_page_config(page_title='BiTe-REx: Retrieve and Explain!', page_icon = "ðŸ
 
 import datetime
 import re
-from util import util, explain_cont, states
+from util import util, display, states
 
 NUM_RETRIEVAL = 5
 
@@ -18,7 +18,7 @@ local_css("data/css/style.css")
 
 @st.cache(allow_output_mutation=True)
 def load_states():
-    scraped_df = util.decompress_pickle('data/scraped_df')
+    scraped_df = util.decompress_pickle('data/scraped_df/scraped_df')
 
     cached_state = states.CachedState(
                                 scraped_df = scraped_df,
@@ -120,8 +120,8 @@ def display_search_results(cached_state, doc_lang):
     
     idx = 1
     for sim, doc in zip(sim, docs):
-        html_string = explain_cont.get_display_text(doc, token_imp, mode='bold')
-        url, title = explain_cont.get_url(cached_state.scraped_df, doc)
+        html_string = display.get_display_text(doc, token_imp, mode='bold')
+        url, title = display.get_url(cached_state.scraped_df, doc)
         with st.container():
             col1, mid = st.columns([2, 20])
             explain_state = states.ExplainState(

@@ -27,14 +27,14 @@ local_css("data/css/style.css")
 DE_DOCS = '1BHIR_AmbyII1wZ5wWbobR4nQU0AYoAAN'
 EN_DOCS = '1hSF-CzOydd0zfO7BkMfT8UoT486nabQO'
 
-DE_WV_UNSUP = '1T6R0NwZT4EGafu7WadSOR6ceCfbumgEQ'
-EN_WV_UNSUP = ''
+DE_WV_UNSUP = '1pWtMVz8ECSRUrqKLq6fFLbt4Wurr9UEx'
+EN_WV_UNSUP = '1fSOqWOid3qtV4LQWZ1ajyjrvVHAb'
 
-DE_VECTORS = ''
-EN_VECTORS = ''
+DE_VECTORS = '1odwHPzr_D53ixraOyJPKyq3CuMF1uqqL'
+EN_VECTORS = '1Jbcw-lUEc0gZTEuMfVJ9C6JPGJ4Hpo6I'
 
-CLS_MODEL = ''
-TFIDF_MODEL = ''
+CLS_MODEL = '10Cr2K1b598wMuwCit7pBqobV1jVXnKmb'
+TFIDF_MODEL = '1B540dJgVEkvtHwlSTbY2xPrmy3tWJBFc'
 CONT_MODEL_MLM_NSP = '1lpl3V-iaaKmwR7myHsuqPMX82Tdq_HHU'
 
 
@@ -51,12 +51,12 @@ def load_model():
     download_file(file_path='data/docs/scraped_de_docs.pbz2', drive_link=DE_DOCS, unzip=False)  
     download_file(file_path='data/docs/scraped_en_docs.pbz2', drive_link=EN_DOCS, unzip=False)  
     download_file(file_path='data/static/de_wv_unsup.pbz2', drive_link=DE_WV_UNSUP, unzip=False)    
-    download_file(file_path='data/static/en_wv_unsup.pbz2', drive_link=EN_WV_UNSUP, unzip=False)   
-    download_file(file_path='data/static/st_de_doc_vectors.pbz2', drive_link=DE_VECTORS, unzip=False)    
-    download_file(file_path='data/static/st_en_doc_vectors.pbz2', drive_link=EN_VECTORS, unzip=False)    
+    # download_file(file_path='data/static/en_wv_unsup.pbz2', drive_link=EN_WV_UNSUP, unzip=False)   
+    # download_file(file_path='data/static/st_de_doc_vectors.pbz2', drive_link=DE_VECTORS, unzip=False)    
+    # download_file(file_path='data/static/st_en_doc_vectors.pbz2', drive_link=EN_VECTORS, unzip=False)    
     download_file(file_path='data/models/model_MLM_NSP.pt', drive_link=CONT_MODEL_MLM_NSP, unzip=False)
-    download_file(file_path='data/models/cls_model.pbz2', drive_link=CLS_MODEL, unzip=False)
-    download_file(file_path='data/models/tfidf_vc.pbz2', drive_link=TFIDF_MODEL, unzip=False)
+    # download_file(file_path='data/models/cls_model.pbz2', drive_link=CLS_MODEL, unzip=False)
+    # download_file(file_path='data/models/tfidf_vc.pbz2', drive_link=TFIDF_MODEL, unzip=False)
 
 @st.cache(allow_output_mutation=True, ttl=3600)
 def load_states():
