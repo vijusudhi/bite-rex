@@ -34,4 +34,4 @@ This folder contains files for the following tasks.
 
 
 
-> **Note:** Due to confidentiality, the data used in the above mentioned scripts/notbeooks is not added in the repository. Please contact [me](mailto:vjusudhi@gmail.com) in case of further queries.
+> **Note:** Due to confidentiality, the data used (in the scripts/notbeooks) is not added in the repository. Please contact [me](mailto:vjusudhi@gmail.com) in case of further queries.
