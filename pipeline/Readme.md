@@ -8,7 +8,7 @@ This folder contains files for the following tasks.
 ## Pre-process
 - script to pre-process data, [preprocess_data.ipynb](./preprocess_data.ipynb)
 
-## Auxilliary
+## Auxiliary
 - script to generate data for Giza++, [generate_data_for_giza.ipynb ](./generate_data_for_giza.ipynb )
 - script to read the dictionary from Giza++, [read_giza_dict.ipynb](./read_giza_dict.ipynb)
 - script to generate simulated text retrieval dataset from EPO, [generate_data_for_phase2.ipynb](./generate_data_for_phase2.ipynb)
@@ -34,4 +34,4 @@ This folder contains files for the following tasks.
 
 
 
-> **Note:** Due to confidentiality, the data used (in the scripts/notbeooks) is not added in the repository. Please contact [me](mailto:vjusudhi@gmail.com) in case of further queries.
+> **Note:** Due to confidentiality, the data used (in the scripts/notebooks) is not added in the repository. Please contact [me](mailto:vjusudhi@gmail.com) in case of further queries.
