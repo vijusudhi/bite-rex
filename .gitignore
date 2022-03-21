@@ -1,7 +1,6 @@
 streamlit
 pandas
 *.ipynb_checkpoints/
-*.ipynb
 src/util/__pycache__/*
 data/docs/*.pbz2
 data/models/*.pbz2
