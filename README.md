@@ -15,7 +15,7 @@ You can run the **demo app** using the link [BiTe-REx](https://bite-rex-demo.her
 
 ```
 $python3.8.8
-pip install requirements.txt
+pip install -r requirements.txt
 streamlit run src/bite_rex_demo.py
 ```
 
@@ -23,7 +23,7 @@ You can run the **full app** using the following commands in your local machine.
 
 ```
 $python3.8.8
-pip install requirements_full.txt
+pip install -r requirements_full.txt
 streamlit run src/bite_rex.py
 ```
 
